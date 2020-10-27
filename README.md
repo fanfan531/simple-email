@@ -3,6 +3,8 @@
 
 demo
 ```
+import Simple_email
+## 发送邮件
 1.填写邮箱配置
     host = 'xx.xx.xx.xx'
     port = 110
@@ -16,8 +18,13 @@ demo
     to = ['']
     cc = []
 3.发送邮件
-    s = SenEmail(host=host,port=port,user=user,pass_=pass_)
-    
-    s.send_email(title=title, body=body, attachment=attachment, sender=sender, to=to, cc=cc)
+    se = SenEmail(host=host,port=port,user=user,pass_=pass_)
+    se.send_email(title=title, body=body, attachment=attachment, sender=sender, to=to, cc=cc)
 
+## 接收邮件正文,附件,邮件头.
+    se_server = SenEmail(host=host,port=port,user=user,pass_=pass_)
+    class AB(GetEmail):
+        def run():
+            '重写run()方法'
+        
 ```

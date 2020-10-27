@@ -1,8 +1,13 @@
 import poplib
 import imaplib
 import smtplib
+import chardet
+import os
 from email.mime.text import MIMEText
 from email.header import Header
+from email.parser import Parser
+from email.header import decode_header
+from email.utils import parseaddr
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from loguru import logger
@@ -20,7 +25,7 @@ class SimpleEmail:
             server = poplib.POP3(self.host, self.port)
             server.user(self.user)
             server.pass_(self.pass_)
-            return server
+            return GetEmail(server)
         except BaseException as e:
             logger.error(f'邮件登录报错 {e}')
             logger.exception(e)
@@ -115,13 +120,89 @@ class SenEmail(SimpleEmail):
             logger.error(e)
             logger.error('邮件发送失败.')
 
+class GetEmail():
+
+    def __init__(self, server):
+        self.server = server
+
+    def decode_str(self, s):
+        ''''''
+        value, charset = decode_header(s)[0]
+        if charset:
+            if charset == 'gb2312':
+                charset = 'gb18030'
+            value = value.decode(charset)
+        return value
+
+    def decode_e_mail(self, data):
+        '''解析转码邮件内容'''
+        try:
+            return data.decode('utf-8')
+        except:
+            try:
+                return data.decode('gbk')
+            except Exception as e:
+                try:
+                    return data.decode('gb18030', 'ignore')
+                except:
+                    logger.error(chardet.detect(data))
+                    logger.error(f'解析转码错误类型是 {e.__class__.__name__}')
+                    logger.exception(f'解析转码错误明细是 {e}')
+                    logger.error(e.__traceback__.tb_lineno)
+        return None
+
+    def get_email_headers(self, msg):
+        '''构造邮件头'''
+        headers = {}
+        for header in ['From', 'Subject', 'Date']:
+            value = msg.get(header, '')
+            if value:
+                if header == 'Date':
+                    headers['Date'] = value
+                if header == 'Subject':
+                    subject = self.decode_str(value)
+                    headers['Subject'] = subject
+                if header == 'From':
+                    hdr, addr = parseaddr(value)
+                    name = self.decode_str(hdr)
+                    from_addr = u'%s <%s>' % (name, addr)
+                    headers['From'] = from_addr
+        return headers
+
+    def get_email_content(self, message, savepath):  # 下载附件函数
+        '''
+        邮件附件下载
+        :param message: message object
+        :param savepath: 附件保存路径
+        :return:
+        '''
+        file_name_list = []
+        for part in message.walk():
+            download_filename = part.get_filename()
+            if download_filename:
+                download_filename = self.decode_str(download_filename)
+                print(f'附件名称:{download_filename}', savepath)
+                data = part.get_payload(decode=True)
+                abs_filename = os.path.join(savepath, download_filename)
+                try:
+                    print(f'邮件附件解压地址: {abs_filename}')
+                    attach = open(abs_filename, 'wb')
+                    attach.write(data)
+                    attach.close()
+                    file_name_list.append(download_filename)
+                except BaseException as e:
+                    print(f'附件下载错误 {abs_filename}')
+                    print(e)
+        return str(file_name_list)
+
+
 
 if __name__ == '__main__':
     host = 'xx.xx.xx.xx'
     port = 110
     user = ''
     pass_ = ''
-    s = SenEmail(host=host,port=port,user=user,pass_=pass_)
+    s = SenEmail(host=host, port=port, user=user, pass_=pass_)
 
     title = ''
     body = ''
